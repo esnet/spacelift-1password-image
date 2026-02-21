@@ -1,30 +1,45 @@
-# Use the official Spacelift Terraform Runner as the base image
-FROM public.ecr.aws/spacelift/runner-terraform:latest
+# New Docker build to work with 1Password Terraform Provider v3.x
+ARG BASE_IMAGE=debian:bookworm-slim
+FROM ${BASE_IMAGE}
 
-# Switch to a temporary working directory
-WORKDIR /tmp
+ARG TARGETARCH
+ARG OP_VERSION=2.30.0
 
-# Elevate temporary permissions to root
-USER root
+# -------------------------
+# Base OS packages
+# -------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    jq \
+    bash \
+    openssh-client \
+    tzdata \
+    unzip \
+    python3 \
+    python3-pip \
+    procps \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install 1Password
-RUN set -eux; \
-  repo="https://downloads.1password.com/linux/alpinelinux/stable/"; \
-  key_url="https://downloads.1password.com/linux/keys/alpinelinux/support@1password.com-61ddfc31.rsa.pub"; \
-  key_path="/etc/apk/keys/support@1password.com-61ddfc31.rsa.pub"; \
-  \
-  # Add APK repository
-  grep -qxF "$repo" /etc/apk/repositories || echo "$repo" >> /etc/apk/repositories; \
-  \
-  # Add signing key
-  wget -q -O "$key_path" "$key_url"; \
-  \
-  # Install 1PW CLI
-  apk update; \
-  apk add --no-cache 1password-cli; \
-  \
-  # Sanity check
-  op --version
+# -------------------------
+# 1Password CLI (op)
+# -------------------------
+RUN curl -fsSL \
+      https://cache.agilebits.com/dist/1P/op2/pkg/v${OP_VERSION}/op_linux_${TARGETARCH}_v${OP_VERSION}.zip \
+    -o /tmp/op.zip \
+ && unzip /tmp/op.zip -d /usr/local/bin \
+ && chmod 755 /usr/local/bin/op \
+ && rm /tmp/op.zip
 
-# Back to the restricted "spacelift" user
+# -------------------------
+# Spacelift user (required)
+# -------------------------
+RUN useradd \
+    --uid 1983 \
+    --create-home \
+    --shell /bin/bash \
+    spacelift
+
+WORKDIR /home/spacelift
 USER spacelift
