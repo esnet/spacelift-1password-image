@@ -33,6 +33,12 @@ RUN curl -fsSL \
  && rm /tmp/op.zip
 
 # -------------------------
+# Infracost
+# -------------------------
+RUN curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh \
+  | sh
+
+# -------------------------
 # Spacelift user (required)
 # -------------------------
 RUN useradd \
